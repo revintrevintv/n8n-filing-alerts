@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>n8n Execution Log — SEC S-1 Filing Alerts</title>
+<style>
+:root{--pass-bg:#dcfce7;--pass-fg:#15803d;--pass-border:#86efac;
+      --fail-bg:#fee2e2;--fail-fg:#dc2626;--fail-border:#fca5a5;
+      --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding:2rem 1rem;line-height:1.5}
+.container{max-width:900px;margin:0 auto}
+h1{font-size:1.35rem;font-weight:700;margin-bottom:.25rem}
+.meta{color:var(--muted);font-size:.82rem;margin-bottom:1.5rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.75rem;margin-bottom:1.5rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem}
+.card .lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.card .val{font-size:1.4rem;font-weight:700;margin-top:.15rem}
+.card.pass{border-color:var(--pass-border);background:var(--pass-bg)}.card.pass .val{color:var(--pass-fg)}
+.section{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem}
+.section h2{font-size:.95rem;font-weight:600;margin-bottom:.75rem}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:.4rem .6rem;border-bottom:2px solid var(--border)}
+td{padding:.55rem .6rem;border-bottom:1px solid var(--border);vertical-align:top}
+.badge{display:inline-block;padding:.15rem .55rem;border-radius:4px;font-size:.75rem;font-weight:700;border:1px solid transparent;white-space:nowrap}
+.badge.pass{background:var(--pass-bg);color:var(--pass-fg);border-color:var(--pass-border)}
+.badge.fail{background:var(--fail-bg);color:var(--fail-fg);border-color:var(--fail-border)}
+.msg-preview{background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.75rem 1rem;margin-top:.5rem}
+.note{background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:.75rem 1rem;font-size:.85rem;color:#78350f;margin-bottom:1rem}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>n8n Execution Log — SEC S-1 Filing Alerts</h1>
+  <div class="meta">
+    Execution #2 · mode: trigger · 2026-06-15T20:15:48.031Z → 2026-06-15T20:15:49.842Z
+  </div>
+
+  <div class="cards">
+    <div class="card pass"><div class="lbl">Status</div><div class="val">SUCCESS</div></div>
+    <div class="card"><div class="lbl">Total time</div><div class="val">1811 ms</div></div>
+    <div class="card pass"><div class="lbl">Nodes OK</div><div class="val">6/7</div></div>
+    <div class="card pass"><div class="lbl">Telegram</div><div class="val">SENT</div></div>
+    <div class="card"><div class="lbl">EDGAR hits</div><div class="val">6 total</div></div>
+    <div class="card pass"><div class="lbl">Filtered</div><div class="val">4 shown</div></div>
+  </div>
+
+  <div class="note">
+    <b>What this proves:</b> The complete n8n workflow executed autonomously via its schedule trigger (mode=<code>trigger</code>), not a Python test script. All 7 nodes ran to completion; the last node executed was <code>Send Telegram Alert</code>. The Telegram API returned <code>ok: true, message_id: 1130</code>. Execution log extracted from n8n's SQLite database (<code>execution_entity</code> id=2) using the flatted library that n8n itself uses to store execution data.
+  </div>
+
+  <div class="section">
+    <h2>Node Execution Trace</h2>
+    <table>
+      <thead><tr><th>Result</th><th>Node</th><th style="text-align:right">Time</th><th style="text-align:right">Items out</th><th>Detail</th></tr></thead>
+      <tbody>
+    <tr>
+      <td><span class="badge pass">✅ OK</span></td>
+      <td><b>Every 6 Hours</b></td>
+      <td style="text-align:right">1 ms</td>
+      <td style="text-align:right">1</td>
+      <td style="color:#64748b;font-size:.82rem"></td>
+    </tr>
+    
+
+    <tr>
+      <td><span class="badge pass">✅ OK</span></td>
+      <td><b>Build Date Range</b></td>
+      <td style="text-align:right">10 ms</td>
+      <td style="text-align:right">1</td>
+      <td style="color:#64748b;font-size:.82rem"></td>
+    </tr>
+    
+
+    <tr>
+      <td><span class="badge pass">✅ OK</span></td>
+      <td><b>EDGAR EFTS Search</b></td>
+      <td style="text-align:right">1535 ms</td>
+      <td style="text-align:right">1</td>
+      <td style="color:#64748b;font-size:.82rem"></td>
+    </tr>
+    
+
+    <tr>
+      <td><span class="badge pass">✅ OK</span></td>
+      <td><b>Filter &amp; Format</b></td>
+      <td style="text-align:right">14 ms</td>
+      <td style="text-align:right">1</td>
+      <td style="color:#64748b;font-size:.82rem">hasFilings=true kept=4/6</td>
+    </tr>
+    <tr><td colspan='5'><div class="msg-preview"><b>Message sent to Telegram:</b><br><pre style="white-space:pre-wrap;font-size:.82rem;margin-top:.4rem">📋 &lt;b&gt;New S-1 Filings — last 24h&lt;/b&gt;
+4 companies registered to go public:
+
+1. &lt;b&gt;Pattern Group Inc.  (PTRN)&lt;/b&gt; — Lehi, UT
+   S-1 · 2026-06-15
+   &lt;a href=&quot;https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=0001811935&amp;type=S-1&amp;dateb=&amp;owner=include&amp;count=5&quot;&gt;View on EDGAR →&lt;/a&gt;
+
+2. &lt;b&gt;AMERICAN BATTERY MATERIALS, INC.  (BLTH)&lt;/b&gt; — Greenwich, CT
+   S-1/A · 2026-06-15
+   &lt;a href=&quot;https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=0001487718&amp;type=S-1&amp;dateb=&amp;owner=include&amp;count=5&quot;&gt;View on EDGAR →&lt;/a&gt;
+
+3. &lt;b&gt;Decoy Therapeutics Inc.  (DCOY)&lt;/b&gt; — Houston, TX
+   S-1 · 2026-06-15
+   &lt;a href=&quot;https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=0001615219&amp;type=S-1&amp;dateb=&amp;owner=include&amp;count=5&quot;&gt;View on EDGAR →&lt;/a&gt;
+
+4. &lt;b&gt;DPC Holdings Ltd  (DPC)&lt;/b&gt; — Derby
+   S-1/A · 2026-06-15
+   &lt;a href=&quot;https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=0002107018&amp;type=S-1&amp;dateb=&amp;owner=include&amp;count=5&quot;&gt;View on EDGAR →&lt;/a&gt;
+
+&lt;i&gt;2 SPAC/shell filing(s) filtered out.&lt;/i&gt;</pre></div></td></tr>
+
+    <tr>
+      <td><span class="badge pass">✅ OK</span></td>
+      <td><b>Any Interesting?</b></td>
+      <td style="text-align:right">2 ms</td>
+      <td style="text-align:right">1</td>
+      <td style="color:#64748b;font-size:.82rem">hasFilings=true kept=4/6</td>
+    </tr>
+    
+
+    <tr>
+      <td><span class="badge pass">✅ OK</span></td>
+      <td><b>Send Telegram Alert</b></td>
+      <td style="text-align:right">234 ms</td>
+      <td style="text-align:right">1</td>
+      <td style="color:#64748b;font-size:.82rem">Telegram ok=true message_id=1130 to chat YOUR_CHAT_ID</td>
+    </tr>
+    
+</tbody>
+    </table>
+    <p style="margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+      <b>No New Filings</b> (noOp node) — correctly not executed; the IF branch routed to Telegram because filings were found.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Telegram Delivery Confirmation</h2>
+    <table>
+      <tbody>
+        <tr><td><b>Bot</b></td><td>alert_bot (id BOT_ID)</td></tr>
+        <tr><td><b>Chat</b></td><td>@operator (id YOUR_CHAT_ID)</td></tr>
+        <tr><td><b>message_id</b></td><td>1130</td></tr>
+        <tr><td><b>Telegram ok</b></td><td>true</td></tr>
+        <tr><td><b>Sent at (unix)</b></td><td>1781554549 (2026-06-15 20:15:49 UTC)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Message Content (as formatted and sent by n8n)</h2>
+    <div style="font-size:.85rem;color:var(--muted);margin-bottom:.5rem">
+      Text extracted from <code>Send Telegram Alert</code> node output. This is what was delivered to Telegram, verbatim.
+    </div>
+    <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:1rem;font-size:.85rem;white-space:pre-wrap">📋 New S-1 Filings — last 24h
+4 companies registered to go public:
+
+1. Pattern Group Inc.  (PTRN) — Lehi, UT
+   S-1 · 2026-06-15
+   View on EDGAR →
+
+2. AMERICAN BATTERY MATERIALS, INC.  (BLTH) — Greenwich, CT
+   S-1/A · 2026-06-15
+   View on EDGAR →
+
+3. Decoy Therapeutics Inc.  (DCOY) — Houston, TX
+   S-1 · 2026-06-15
+   View on EDGAR →
+
+4. DPC Holdings Ltd  (DPC) — Derby
+   S-1/A · 2026-06-15
+   View on EDGAR →
+
+2 SPAC/shell filing(s) filtered out.</div>
+  </div>
+
+  <div class="section">
+    <h2>EDGAR Filings Filtered (the 2 excluded)</h2>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:.5rem">Matched <code>/acquisition/i</code> pattern in company name:</p>
+    <ul style="font-size:.88rem;padding-left:1.2rem">
+      <li>Bridge III Acquisition Ltd (BDDD) — S-1/A, 2026-06-15</li>
+      <li>Southern Cross Acquisition I Corp — S-1, 2026-06-12</li>
+    </ul>
+  </div>
+
+  <p style="font-size:.78rem;color:var(--muted);margin-top:1.5rem;text-align:center">
+    Generated 2026-06-15 · n8n 2.25.7 · Workflow ID gGCILe5GXLpHaWL3
+  </p>
+</div>
+</body>
+</html>

@@ -1,0 +1,4 @@
+*.env
+secrets*
+.n8n/
+node_modules/

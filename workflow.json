@@ -1,0 +1,491 @@
+{
+  "updatedAt": "2026-06-15T19:30:18.934Z",
+  "createdAt": "2026-06-15T19:28:10.857Z",
+  "name": "SEC S-1 Filing Alerts",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "71cc129e-63b3-4896-9981-d3643b3411ae",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst pad = d => String(d).padStart(2, '0');\nconst fmt = dt => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;\nconst today = fmt(now);\nconst yesterday = fmt(new Date(now.getTime() - 86400000));\nreturn [{ json: { startdt: yesterday, enddt: today } }];"
+      },
+      "id": "06ea9d54-47f3-49f0-9e4a-9cafaad69a6f",
+      "name": "Build Date Range",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://efts.sec.gov/LATEST/search-index?forms=S-1&dateRange=custom&startdt={{ $json.startdt }}&enddt={{ $json.enddt }}&from=0",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-filing-alerts your@email.com"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8f59d6bc-2e64-40e7-ad79-cab80dbc6c1b",
+      "name": "EDGAR EFTS Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter interesting S-1 filings and format Telegram message\nconst resp = $input.first().json;\nconst hits = resp.hits?.hits || [];\n\n// Exclude SPACs, shells, and blank-check companies by name pattern\nconst BORING = [\n  /\\bacquisition\\b/i,\n  /\\bblank.check\\b/i,\n  /\\bspac\\b/i,\n  /\\bmerger\\b/i\n];\n\nconst interesting = hits.filter(hit => {\n  const src = hit._source || {};\n  const raw = (src.display_names || [''])[0];\n  const name = raw.replace(/\\s*\\(CIK \\d+\\)\\s*$/i, '').trim();\n  return name.length > 0 && !BORING.some(p => p.test(name));\n});\n\nif (interesting.length === 0) {\n  return [{ json: { hasFilings: false, message: '', total: hits.length, kept: 0 } }];\n}\n\nconst topN = interesting.slice(0, 8);\nconst lines = topN.map((hit, i) => {\n  const src = hit._source || {};\n  const raw = (src.display_names || ['Unknown'])[0];\n  const name = raw.replace(/\\s*\\(CIK \\d+\\)\\s*$/i, '').trim();\n  const cik = (src.ciks || ['0'])[0];\n  const date = src.file_date || '';\n  const formType = src.form || 'S-1';\n  const loc = (src.biz_locations || [''])[0];\n  const cikPadded = String(parseInt(cik || '0')).padStart(10, '0');\n  const url = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${cikPadded}&type=S-1&dateb=&owner=include&count=5`;\n  const locStr = loc ? ` \u2014 ${loc}` : '';\n  return `${i+1}. <b>${name}</b>${locStr}\\n   ${formType} \\u00b7 ${date}\\n   <a href=\"${url}\">View on EDGAR \\u2192</a>`;\n}).join('\\n\\n');\n\nconst skipped = hits.length - interesting.length;\nconst extra = skipped > 0 ? `\\n\\n<i>${skipped} SPAC/shell filing(s) filtered out.</i>` : '';\nconst headerCount = interesting.length > 8 ? `${topN.length} of ${interesting.length}` : String(interesting.length);\nconst message = `\\ud83d\\udccb <b>New S-1 Filings \\u2014 last 24h</b>\\n${headerCount} companies registered to go public:\\n\\n${lines}${extra}`;\n\nreturn [{ json: { hasFilings: true, message, total: hits.length, kept: interesting.length } }];"
+      },
+      "id": "7d7ad448-1cce-47a5-b223-c9f01c2a7a18",
+      "name": "Filter & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ff508d97-b05e-4623-9d44-34c8711db524",
+              "leftValue": "={{ $json.hasFilings }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "520c2c55-f876-41d1-b08e-ebf50472e9f6",
+      "name": "Any Interesting?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "=YOUR_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Foreman Dispatch Bot"
+        }
+      },
+      "id": "98ec427f-34a3-4155-8e87-e38bcb949c0a",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "ec068d3d-9921-49e8-a02e-cbc93d239788",
+      "name": "No New Filings",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Build Date Range",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Date Range": {
+      "main": [
+        [
+          {
+            "node": "EDGAR EFTS Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EDGAR EFTS Search": {
+      "main": [
+        [
+          {
+            "node": "Filter & Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter & Format": {
+      "main": [
+        [
+          {
+            "node": "Any Interesting?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Interesting?": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No New Filings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Every 6 Hours": {
+      "recurrenceRules": []
+    }
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "activeVersionId": "518667de-49a1-47d1-a057-fda40bdd632c",
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "shared": [
+    {
+      "updatedAt": "2026-06-15T19:28:10.863Z",
+      "createdAt": "2026-06-15T19:28:10.863Z",
+      "role": "workflow:owner",
+      "workflowId": "gGCILe5GXLpHaWL3",
+      "projectId": "1lD4vCPNEhEJrr6T",
+      "project": {
+        "updatedAt": "2026-06-15T19:04:26.721Z",
+        "createdAt": "2026-06-15T19:04:26.721Z",
+        "id": "1lD4vCPNEhEJrr6T",
+        "name": "Unnamed Project",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "b8e6132d-954e-452e-9eb3-af785c2d4f71"
+      }
+    }
+  ],
+  "tags": [],
+  "parentFolder": null,
+  "activeVersion": {
+    "updatedAt": "2026-06-15T19:28:10.865Z",
+    "createdAt": "2026-06-15T19:28:10.865Z",
+    "versionId": "518667de-49a1-47d1-a057-fda40bdd632c",
+    "workflowId": "gGCILe5GXLpHaWL3",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours",
+                "hoursInterval": 6
+              }
+            ]
+          }
+        },
+        "id": "71cc129e-63b3-4896-9981-d3643b3411ae",
+        "name": "Every 6 Hours",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          240,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const now = new Date();\nconst pad = d => String(d).padStart(2, '0');\nconst fmt = dt => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;\nconst today = fmt(now);\nconst yesterday = fmt(new Date(now.getTime() - 86400000));\nreturn [{ json: { startdt: yesterday, enddt: today } }];"
+        },
+        "id": "06ea9d54-47f3-49f0-9e4a-9cafaad69a6f",
+        "name": "Build Date Range",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          460,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "url": "=https://efts.sec.gov/LATEST/search-index?forms=S-1&dateRange=custom&startdt={{ $json.startdt }}&enddt={{ $json.enddt }}&from=0",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "User-Agent",
+                "value": "n8n-filing-alerts your@email.com"
+              },
+              {
+                "name": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "8f59d6bc-2e64-40e7-ad79-cab80dbc6c1b",
+        "name": "EDGAR EFTS Search",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          680,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Filter interesting S-1 filings and format Telegram message\nconst resp = $input.first().json;\nconst hits = resp.hits?.hits || [];\n\n// Exclude SPACs, shells, and blank-check companies by name pattern\nconst BORING = [\n  /\\bacquisition\\b/i,\n  /\\bblank.check\\b/i,\n  /\\bspac\\b/i,\n  /\\bmerger\\b/i\n];\n\nconst interesting = hits.filter(hit => {\n  const src = hit._source || {};\n  const raw = (src.display_names || [''])[0];\n  const name = raw.replace(/\\s*\\(CIK \\d+\\)\\s*$/i, '').trim();\n  return name.length > 0 && !BORING.some(p => p.test(name));\n});\n\nif (interesting.length === 0) {\n  return [{ json: { hasFilings: false, message: '', total: hits.length, kept: 0 } }];\n}\n\nconst topN = interesting.slice(0, 8);\nconst lines = topN.map((hit, i) => {\n  const src = hit._source || {};\n  const raw = (src.display_names || ['Unknown'])[0];\n  const name = raw.replace(/\\s*\\(CIK \\d+\\)\\s*$/i, '').trim();\n  const cik = (src.ciks || ['0'])[0];\n  const date = src.file_date || '';\n  const formType = src.form || 'S-1';\n  const loc = (src.biz_locations || [''])[0];\n  const cikPadded = String(parseInt(cik || '0')).padStart(10, '0');\n  const url = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${cikPadded}&type=S-1&dateb=&owner=include&count=5`;\n  const locStr = loc ? ` \u2014 ${loc}` : '';\n  return `${i+1}. <b>${name}</b>${locStr}\\n   ${formType} \\u00b7 ${date}\\n   <a href=\"${url}\">View on EDGAR \\u2192</a>`;\n}).join('\\n\\n');\n\nconst skipped = hits.length - interesting.length;\nconst extra = skipped > 0 ? `\\n\\n<i>${skipped} SPAC/shell filing(s) filtered out.</i>` : '';\nconst headerCount = interesting.length > 8 ? `${topN.length} of ${interesting.length}` : String(interesting.length);\nconst message = `\\ud83d\\udccb <b>New S-1 Filings \\u2014 last 24h</b>\\n${headerCount} companies registered to go public:\\n\\n${lines}${extra}`;\n\nreturn [{ json: { hasFilings: true, message, total: hits.length, kept: interesting.length } }];"
+        },
+        "id": "7d7ad448-1cce-47a5-b223-c9f01c2a7a18",
+        "name": "Filter & Format",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          900,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose"
+            },
+            "conditions": [
+              {
+                "id": "ff508d97-b05e-4623-9d44-34c8711db524",
+                "leftValue": "={{ $json.hasFilings }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        },
+        "id": "520c2c55-f876-41d1-b08e-ebf50472e9f6",
+        "name": "Any Interesting?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          1120,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "=YOUR_CHAT_ID",
+          "text": "={{ $json.message }}",
+          "additionalFields": {
+            "parse_mode": "HTML"
+          }
+        },
+        "credentials": {
+          "telegramApi": {
+            "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+            "name": "Foreman Dispatch Bot"
+          }
+        },
+        "id": "98ec427f-34a3-4155-8e87-e38bcb949c0a",
+        "name": "Send Telegram Alert",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          1340,
+          200
+        ],
+        "webhookId": "3814ef2b-d260-4197-a801-9df4a4ee55a1"
+      },
+      {
+        "parameters": {},
+        "id": "ec068d3d-9921-49e8-a02e-cbc93d239788",
+        "name": "No New Filings",
+        "type": "n8n-nodes-base.noOp",
+        "typeVersion": 1,
+        "position": [
+          1340,
+          420
+        ]
+      }
+    ],
+    "connections": {
+      "Every 6 Hours": {
+        "main": [
+          [
+            {
+              "node": "Build Date Range",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Date Range": {
+        "main": [
+          [
+            {
+              "node": "EDGAR EFTS Search",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "EDGAR EFTS Search": {
+        "main": [
+          [
+            {
+              "node": "Filter & Format",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter & Format": {
+        "main": [
+          [
+            {
+              "node": "Any Interesting?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Any Interesting?": {
+        "main": [
+          [
+            {
+              "node": "Send Telegram Alert",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "No New Filings",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Admin n8n",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": []
+  },
+  "scopes": [
+    "execution:reveal",
+    "workflow:create",
+    "workflow:delete",
+    "workflow:disableRedaction",
+    "workflow:enableRedaction",
+    "workflow:execute",
+    "workflow:execute-chat",
+    "workflow:export",
+    "workflow:import",
+    "workflow:list",
+    "workflow:move",
+    "workflow:publish",
+    "workflow:read",
+    "workflow:share",
+    "workflow:unpublish",
+    "workflow:unshare",
+    "workflow:update"
+  ],
+  "checksum": "6d8702668d42e5e70279fd1c279fd0b7046e3e2c357bd389084b300b823d3dfd"
+}
